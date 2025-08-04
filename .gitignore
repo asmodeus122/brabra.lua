@@ -3,21 +3,25 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
 
 local config = {
     esp = true,
     instantSteal = true,
-    safeZone = false,
+    autoTP = true,
+    safeZone = true,
+    noclip = true,
     brainrotFolder = workspace:WaitForChild("Brainrots"),
-    distanceSteal = 10
+    distanceSteal = 15,
+    stealDelay = 0.05
 }
 
 local function criarESP(obj)
     if obj:FindFirstChild("Highlight") or not config.esp then return end
     local highlight = Instance.new("Highlight")
-    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.FillColor = Color3.fromRGB(0, 255, 0)
     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.5
+    highlight.FillTransparency = 0.25
     highlight.OutlineTransparency = 0
     highlight.Parent = obj
 end
@@ -25,22 +29,57 @@ end
 local function roubarBrainrot(brainrot)
     if not brainrot or not brainrot:IsDescendantOf(workspace) then return end
     if (brainrot.Position - Character.PrimaryPart.Position).Magnitude <= config.distanceSteal then
-        Character:SetPrimaryPartCFrame(CFrame.new(brainrot.Position + Vector3.new(0, 2, 0)))
         fireproximityprompt(brainrot:FindFirstChildWhichIsA("ProximityPrompt"), 1)
     end
+end
+
+local function teleportarParaMaisProximo()
+    local maisProximo, menorDistancia = nil, math.huge
+    for _, brainrot in pairs(config.brainrotFolder:GetChildren()) do
+        if brainrot:IsA("BasePart") then
+            local distancia = (brainrot.Position - Character.PrimaryPart.Position).Magnitude
+            if distancia < menorDistancia then
+                maisProximo = brainrot
+                menorDistancia = distancia
+            end
+        end
+    end
+    if maisProximo then
+        Character:SetPrimaryPartCFrame(CFrame.new(maisProximo.Position + Vector3.new(0, 2, 0)))
+    end
+end
+
+if config.noclip then
+    RunService.Stepped:Connect(function()
+        for _, part in ipairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
+    end)
 end
 
 RunService.RenderStepped:Connect(function()
     for _, brainrot in pairs(config.brainrotFolder:GetChildren()) do
         if brainrot:IsA("BasePart") then
             criarESP(brainrot)
-            if config.instantSteal then
+        end
+    end
+
+    if config.autoTP then
+        teleportarParaMaisProximo()
+    end
+
+    if config.instantSteal then
+        for _, brainrot in pairs(config.brainrotFolder:GetChildren()) do
+            if brainrot:IsA("BasePart") then
                 roubarBrainrot(brainrot)
+                task.wait(config.stealDelay)
             end
         end
     end
 end)
 
 if config.safeZone then
-    Character.HumanoidRootPart.Anchored = true
+    Humanoid.PlatformStand = true
 end
