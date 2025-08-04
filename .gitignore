@@ -1,41 +1,46 @@
-# Compiled Lua sources
-luac.out
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 
-# luarocks build files
-*.src.rock
-*.zip
-*.tar.gz
+local config = {
+    esp = true,
+    instantSteal = true,
+    safeZone = false,
+    brainrotFolder = workspace:WaitForChild("Brainrots"),
+    distanceSteal = 10
+}
 
-# Object files
-*.o
-*.os
-*.ko
-*.obj
-*.elf
+local function criarESP(obj)
+    if obj:FindFirstChild("Highlight") or not config.esp then return end
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Parent = obj
+end
 
-# Precompiled Headers
-*.gch
-*.pch
+local function roubarBrainrot(brainrot)
+    if not brainrot or not brainrot:IsDescendantOf(workspace) then return end
+    if (brainrot.Position - Character.PrimaryPart.Position).Magnitude <= config.distanceSteal then
+        Character:SetPrimaryPartCFrame(CFrame.new(brainrot.Position + Vector3.new(0, 2, 0)))
+        fireproximityprompt(brainrot:FindFirstChildWhichIsA("ProximityPrompt"), 1)
+    end
+end
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-*.def
-*.exp
+RunService.RenderStepped:Connect(function()
+    for _, brainrot in pairs(config.brainrotFolder:GetChildren()) do
+        if brainrot:IsA("BasePart") then
+            criarESP(brainrot)
+            if config.instantSteal then
+                roubarBrainrot(brainrot)
+            end
+        end
+    end
+end)
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
+if config.safeZone then
+    Character.HumanoidRootPart.Anchored = true
+end
