@@ -1,16 +1,17 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
+local StarterGui = game:GetService("StarterGui")
 
 local config = {
     esp = true,
-    instantSteal = true,
-    autoTP = true,
+    instantSteal = false,
+    autoTP = false,
     safeZone = true,
-    noclip = true,
+    noclip = false,
     brainrotFolder = workspace:WaitForChild("Brainrots"),
     distanceSteal = 15,
     stealDelay = 0.05
@@ -29,7 +30,13 @@ end
 local function roubarBrainrot(brainrot)
     if not brainrot or not brainrot:IsDescendantOf(workspace) then return end
     if (brainrot.Position - Character.PrimaryPart.Position).Magnitude <= config.distanceSteal then
-        fireproximityprompt(brainrot:FindFirstChildWhichIsA("ProximityPrompt"), 1)
+        local prompt = brainrot:FindFirstChildWhichIsA("ProximityPrompt")
+        if prompt then
+            -- Para mobile, tente usar: prompt:InputHoldBegin() e InputHoldEnd()
+            prompt:InputHoldBegin()
+            task.wait(0.1)
+            prompt:InputHoldEnd()
+        end
     end
 end
 
@@ -83,3 +90,64 @@ end)
 if config.safeZone then
     Humanoid.PlatformStand = true
 end
+
+-- Criar GUI para controlar no mobile
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "StealBrainrotControls"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local function criarBotao(texto, posY, ativar, desativar)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 120, 0, 40)
+    btn.Position = UDim2.new(0, 10, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Text = texto .. ": OFF"
+    btn.Parent = screenGui
+    btn.Active = true
+    btn.AutoButtonColor = true
+
+    local ligado = false
+    btn.MouseButton1Click:Connect(function()
+        ligado = not ligado
+        if ligado then
+            btn.Text = texto .. ": ON"
+            ativar()
+        else
+            btn.Text = texto .. ": OFF"
+            desativar()
+        end
+    end)
+end
+
+criarBotao("Noclip", 10,
+    function()
+        config.noclip = true
+        RunService.Stepped:Connect(function()
+            for _, part in ipairs(Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide == true then
+                    part.CanCollide = false
+                end
+            end
+        end)
+    end,
+    function()
+        config.noclip = false
+        for _, part in ipairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+)
+
+criarBotao("Auto TP", 60,
+    function() config.autoTP = true end,
+    function() config.autoTP = false end
+)
+
+criarBotao("Auto Steal", 110,
+    function() config.instantSteal = true end,
+    function() config.instantSteal = false end
+)
